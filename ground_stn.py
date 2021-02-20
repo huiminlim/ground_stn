@@ -1,7 +1,8 @@
-import sys
-import serial
-import time
 from multiprocessing import Process, Pipe
+from CCSDS_util import *
+import sys
+import time
+import serial
 
 # Note: Run this code only on Ubuntu WSL to allow multiprocessing
 # https://icircuit.net/accessing-com-port-from-wsl/2704
@@ -9,12 +10,28 @@ from multiprocessing import Process, Pipe
 
 # Function to call in process to collect beacons from TT&C
 def handle_incoming_beacons(serial_ttnc_obj, main_pipe):
+
+    # Pretty print beacon data
+    def pretty_print_beacon(decoded_beacon):
+        print()
+        for field, field_dict in decoded_beacon.items():
+            print(f"---- {field} ----")
+            print("\n".join("{:<30} {}".format(k, v)
+                            for k, v in field_dict.items()))
+        print()
+
     while True:
         # Check if pipes have anything
         if main_pipe.poll(0.2) == True:
-            print("Pipes say something, leave now")
+            print("Pipes say something before process leave now")
             main_pipe.recv()
             break
+
+        # Wait to receive beacons
+        ccsds_beacon_bytes = serial_ttnc_obj.read(CCSDS_BEACON_LEN_BYTES)
+        if ccsds_beacon_bytes:
+            decoded_ccsds_beacon = beacon_packet_decoder(ccsds_beacon_bytes)
+            pretty_print_beacon(decoded_ccsds_beacon)
 
 
 # Main function to control all the ground station process transition in Mission Mode Diagram
@@ -26,6 +43,7 @@ def main():
         msg = msg + "To transition ground station into these modes, enter commands: " + "\n"
         msg = msg + "Contact mode: [C] " + "\n"
         msg = msg + "Downlink mode: [D] " + "\n"
+        msg = msg + "Terminate Script: [Z] " + "\n"
         msg = msg + "Command entered: "
         return msg
 
@@ -42,8 +60,7 @@ def main():
 
     # Enter Autonomous mode to wait for beacons
     process_beacon_collection = Process(
-        target=handle_incoming_beacons, args=(serial_ttnc, conn_process_beacon))
-    process_beacon_collection.daemon = True
+        target=handle_incoming_beacons, args=(serial_ttnc, conn_process_beacon), daemon=True)
 
     run_flag = True
     try:
@@ -71,14 +88,27 @@ def main():
             while run_flag:
                 print("---- WAITING FOR COMMANDS ----")
                 cmd = input(get_help_message())
-                if cmd.lower() == 'c' or cmd.lower() == 'd':
+                print()
+
+                if cmd.lower() == 'c':
+                    conn_main_process.send("stop")
+                    process_beacon_collection.join()
+                    time.sleep(3)
+                    process_beacon_collection = Process(
+                        target=handle_incoming_beacons, args=(serial_ttnc, conn_process_beacon), daemon=True)
+                    process_beacon_collection.start()
+                    print("Restart process")
+                    # run_flag = False
+
+                if cmd.lower() == 'd':
+                    pass
+
+                if cmd.lower() == 'z':
                     conn_main_process.send("stop")
                     process_beacon_collection.join()
                     run_flag = False
-
                 pass
 
-            pass
     except KeyboardInterrupt:
         run_flag = False
 
