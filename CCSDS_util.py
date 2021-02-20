@@ -1,8 +1,11 @@
 CCSDS_BEACON_LEN_BYTES = 38
 
+# Sequence number of the telecommand packet
+TELECOMMAND_PACKET_COUNT = 0
+
 
 # Function to parse CCSDS packet header
-def parse_packet_header(header):
+def CCSDS_parse_packet_header(header):
     version_number = header[0] >> 5
     type_indicator = (header[0] >> 4) & 0b1
 
@@ -21,7 +24,7 @@ def parse_packet_header(header):
     return ret_header
 
 
-def beacon_packet_decoder(beacon_bytes):
+def CCSDS_beacon_decoder(beacon_bytes):
 
     def parse_beacon_telemetry_type(telemetry_type_field):
         return {'Telemetry ID': telemetry_type_field}
@@ -119,7 +122,7 @@ def beacon_packet_decoder(beacon_bytes):
         return ret_timestamp
 
     header = beacon_bytes[0:6]
-    ret = {'Header': parse_packet_header(header),
+    ret = {'Header': CCSDS_parse_packet_header(header),
            'Telemetry Packet Type': parse_beacon_telemetry_type(beacon_bytes[6]),
            'TT&C': parse_beacon_ttnc_field(beacon_bytes[7:9]),
            'ADCS': parse_beacon_adcs_field(beacon_bytes[9:21]),
@@ -127,3 +130,70 @@ def beacon_packet_decoder(beacon_bytes):
            'Payload': parse_beacon_payload_field(beacon_bytes[27:31]),
            'Timestamp': parse_beacon_timestamp_field(beacon_bytes[31:])}
     return ret
+
+
+# --------------------------------------------------------------------
+
+# Function creates a CCSDS header
+# Takes in length (in terms of bytes) of the ccsds packet
+def CCSDS_create_packet_header(data_field_byte_len):
+    global TELECOMMAND_PACKET_COUNT
+
+    # Abstract header as 6 bytes
+    header = bytearray(0)  # octet 1, 2, ..., 6
+
+    octet = 0b0
+
+    # Version number
+    octet = octet << 3 | 0b000
+
+    # # Packet identification
+    # # @Type indicator -- Set to 0 to indicate telemetry packet
+    octet = octet << 1 | 0b0
+
+    # # @Packet Secondary Header Flag -- Set to 0 to indicate that secondary header not present
+    octet = octet << 1 | 0b0
+
+    # # @Application Process ID
+    # # Defines the process onboard that is sending the packet --> TBC
+    octet = octet << 11 | 0b10
+
+    header = header + octet.to_bytes(2, 'big')
+
+    octet = 0b0
+
+    # # Packet Sequence Control
+    # # @Grouping packets -- No grouping so set to 0
+    octet = octet << 2 | 0b11
+
+    # # @Source Sequence Count
+    # # Sequence number of packet modulo 16384
+    octet = octet << 14 | TELECOMMAND_PACKET_COUNT
+    TELECOMMAND_PACKET_COUNT = TELECOMMAND_PACKET_COUNT + 1
+
+    header = header + octet.to_bytes(2, 'big')
+
+    octet = 0b0
+
+    # # Packet Data Length
+    # In terms of octets
+    # Total number of octets in packet data field - 1
+    octet = octet << 16 | (data_field_byte_len - 1)
+
+    header = header + octet.to_bytes(2, 'big')
+
+    return header
+
+
+# TELECOMMAND PACKET CREATION
+
+def CCSDS_create_HK_telecommand():
+    pass
+
+
+def CCSDS_create_mission_telecommand():
+    pass
+
+
+def CCSDS_create_downlink_telecommand():
+    pass

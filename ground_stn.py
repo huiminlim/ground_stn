@@ -8,6 +8,53 @@ import serial
 # https://icircuit.net/accessing-com-port-from-wsl/2704
 
 
+def handle_contact_mode(serial_ttnc_obj):
+    def get_help_message():
+        msg = "" + '\n'
+        msg = msg + "Enter telecommand type - " + '\n'
+        msg = msg + "OBC HK Request     -   [1]" + '\n'
+        msg = msg + "EPS HK Request     -   [2]" + '\n'
+        msg = msg + "ADCS HK Request    -   [3]" + '\n'
+        msg = msg + "TT&C HK Request    -   [4]" + '\n'
+        msg = msg + "Payload HK Request -   [5]" + '\n'
+        msg = msg + "Mission Command    -   [11]" + '\n'
+        msg = msg + "Downlink Command   -   [21]" + '\n'
+        return msg
+
+    ccsds_telecommand = bytearray(0)
+
+    print(get_help_message())
+    cmd = int(input())
+
+    print("Timestamp format: [DD-MM-YYYY-hh-mm-ss]")
+    if cmd >= 1 and cmd <= 5:
+        print("---- HK DATA REQUEST ----")
+        timestamp_query_start = input(
+            "Enter start timestamp to query for data: ")
+        timestamp_query_end = input("Enter end timestamp to query for data: ")
+
+        # print(timestamp_query_start, timestamp_query_end)
+
+    elif cmd == 11:
+        print("---- MISSION COMMAND ----")
+        timestamp_start_mission = input("Enter timestamp to start mission: ")
+        num_images = input("Enter number of images to capture: ")
+        interval = input("Enter time interval between captures: ")
+
+        # print(timestamp_start_mission, num_images, interval)
+
+    elif cmd == 21:
+        print("---- DOWNLINK COMMAND ----")
+        timestamp_start_mission = input("Enter timestamp to start mission: ")
+        timestamp_query_downlink_start = input(
+            "Enter start timestamp to query for mission: ")
+        timestamp_query_downlink_end = input(
+            "Enter end timestamp to query for mission: ")
+
+        # print(timestamp_start_mission, timestamp_query_downlink_start,
+        #       timestamp_query_downlink_end)
+
+
 # Function to call in process to collect beacons from TT&C
 def handle_incoming_beacons(serial_ttnc_obj, main_pipe):
 
@@ -30,7 +77,7 @@ def handle_incoming_beacons(serial_ttnc_obj, main_pipe):
         # Wait to receive beacons
         ccsds_beacon_bytes = serial_ttnc_obj.read(CCSDS_BEACON_LEN_BYTES)
         if ccsds_beacon_bytes:
-            decoded_ccsds_beacon = beacon_packet_decoder(ccsds_beacon_bytes)
+            decoded_ccsds_beacon = CCSDS_beacon_decoder(ccsds_beacon_bytes)
             pretty_print_beacon(decoded_ccsds_beacon)
 
 
@@ -101,10 +148,11 @@ def main():
                     conn_main_process.send("stop")
                     process_beacon_collection.join()
 
-                    # Send Telecommand
-                    serial_ttnc.write(b"hello\r\n")
-                    print("Send telecommand to ttnc")
+                    # Start contact mode process
+                    print("Start Contact mode process")
+                    handle_contact_mode(serial_ttnc)
 
+                    # Resume beacon collection after contact mode process ends
                     process_beacon_collection = Process(
                         target=handle_incoming_beacons, args=(serial_ttnc, conn_process_beacon), daemon=True)
                     process_beacon_collection.start()
