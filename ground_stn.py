@@ -4,6 +4,10 @@ import sys
 import time
 import serial
 
+# Reduce print clutter on terminal
+VERBOSE_MODE = 1
+
+
 # Note: Run this code only on Ubuntu WSL to allow multiprocessing
 # https://icircuit.net/accessing-com-port-from-wsl/2704
 
@@ -97,7 +101,8 @@ def handle_incoming_beacons(serial_ttnc_obj, main_pipe):
         ccsds_beacon_bytes = serial_ttnc_obj.read(CCSDS_BEACON_LEN_BYTES)
         if ccsds_beacon_bytes:
             decoded_ccsds_beacon = CCSDS_beacon_decoder(ccsds_beacon_bytes)
-            # pretty_print_beacon(decoded_ccsds_beacon)
+            if VERBOSE_MODE == 0:
+                pretty_print_beacon(decoded_ccsds_beacon)
 
 
 # Main function to control all the ground station process transition in Mission Mode Diagram
