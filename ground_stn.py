@@ -33,6 +33,10 @@ def handle_contact_mode(serial_ttnc_obj):
             "Enter start timestamp to query for data: ")
         timestamp_query_end = input("Enter end timestamp to query for data: ")
 
+        ccsds_telecommand = CCSDS_create_HK_telecommand(
+            cmd, timestamp_query_start, timestamp_query_end)
+        print(ccsds_telecommand)
+
         # print(timestamp_query_start, timestamp_query_end)
 
     elif cmd == 11:
@@ -78,7 +82,7 @@ def handle_incoming_beacons(serial_ttnc_obj, main_pipe):
         ccsds_beacon_bytes = serial_ttnc_obj.read(CCSDS_BEACON_LEN_BYTES)
         if ccsds_beacon_bytes:
             decoded_ccsds_beacon = CCSDS_beacon_decoder(ccsds_beacon_bytes)
-            pretty_print_beacon(decoded_ccsds_beacon)
+            # pretty_print_beacon(decoded_ccsds_beacon)
 
 
 # Main function to control all the ground station process transition in Mission Mode Diagram

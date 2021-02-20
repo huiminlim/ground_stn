@@ -185,15 +185,67 @@ def CCSDS_create_packet_header(data_field_byte_len):
     return header
 
 
-# TELECOMMAND PACKET CREATION
+# --- TELECOMMAND PACKET CREATION ---
+# Process [DD-MM-YYYY-hh-mm-ss] to bytearray
+def CCSDS_process_timestamp(timestamp):
+    ret = bytearray(0)
+    ts_list = [int(s) for s in timestamp.split('-')]
 
-def CCSDS_create_HK_telecommand():
+    # DD
+    ret = ret + ts_list[0].to_bytes(1, 'big')
+
+    # MM
+    ret = ret + ts_list[1].to_bytes(1, 'big')
+
+    # YYYY
+    ret = ret + ts_list[2].to_bytes(2, 'big')
+
+    # hh
+    ret = ret + ts_list[3].to_bytes(1, 'big')
+
+    # mm
+    ret = ret + ts_list[4].to_bytes(1, 'big')
+
+    # ss
+    ret = ret + ts_list[5].to_bytes(1, 'big')
+
+    return ret
+
+
+# Create CCSDS HK telecommand
+def CCSDS_create_HK_telecommand(telecommand_type, timestamp_start_query, timestamp_end_query):
+    packet_field = bytearray(0)
+
+    # Create the other fields in packet first
+    packet_field = packet_field + telecommand_type.to_bytes(1, 'big')
+    packet_field = packet_field + \
+        CCSDS_process_timestamp(timestamp_start_query)
+    packet_field = packet_field + CCSDS_process_timestamp(timestamp_end_query)
+
+    # Create header
+    header = CCSDS_create_packet_header(len(packet_field))
+
+    # Return appended packet
+    return header + packet_field
+
+
+def CCSDS_create_mission_telecommand(telecommand_type, timestamp_start_mission, num_images, interval):
+
+    # Create the other fields in packet first
+
+    # Create header
+
+    # Return appended packet
+
     pass
 
 
-def CCSDS_create_mission_telecommand():
-    pass
+def CCSDS_create_downlink_telecommand(telecommand_type, timestamp_start_downlink, timestamp_start_query, timestamp_end_query):
 
+    # Create the other fields in packet first
 
-def CCSDS_create_downlink_telecommand():
+    # Create header
+
+    # Return appended packet
+
     pass
