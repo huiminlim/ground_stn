@@ -1,6 +1,4 @@
 import serial
-from bitstring import BitArray, Bits
-
 # Return dict of packet fields decoded
 # dict format:  ( (Version number, Type indicator, Packet Sec Hdr flag, App Process ID, Group flag, Source Seq Count, Packet data length) , Packet data )
 
