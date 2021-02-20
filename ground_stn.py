@@ -62,11 +62,16 @@ def handle_contact_mode(serial_ttnc_obj):
         ccsds_telecommand = CCSDS_create_downlink_telecommand(
             cmd, timestamp_start_downlink, timestamp_query_downlink_start, timestamp_query_downlink_end)
 
-        # KIV: Need to schedule a downlink event -- AP Scheduler
-
     print("Sending CCSDS telecommand...")
     serial_ttnc_obj.write(ccsds_telecommand)
-    print("Done...")
+    print("Sending done...")
+
+    # Await downlink data
+    if cmd >= 1 and cmd <= 5:
+        print("TO DO: Await downlink data - KIV")
+
+    if cmd == 21:
+        print("TO DO: Need to schedule task to collect downlink data")
 
 
 # Function to call in process to collect beacons from TT&C
