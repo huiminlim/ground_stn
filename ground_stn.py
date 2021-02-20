@@ -146,7 +146,7 @@ def main():
                 if cmd.lower() == 'h':
                     print(get_help_message())
 
-                if cmd.lower() == 'c':
+                elif cmd.lower() == 'c':
 
                     # Stop beacon receiving process
                     conn_main_process.send("stop")
@@ -161,15 +161,19 @@ def main():
                         target=handle_incoming_beacons, args=(serial_ttnc, conn_process_beacon), daemon=True)
                     process_beacon_collection.start()
                     print("Restart beacon collection process")
+                    print()
 
-                if cmd.lower() == 'd':
+                elif cmd.lower() == 'd':
                     pass
 
-                if cmd.lower() == 'z':
+                elif cmd.lower() == 'z':
                     conn_main_process.send("stop")
                     process_beacon_collection.join()
                     run_flag = False
-                pass
+
+                else:
+                    print("Command not found...")
+                    print()
 
     except KeyboardInterrupt:
         run_flag = False
