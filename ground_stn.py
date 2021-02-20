@@ -22,7 +22,7 @@ def handle_incoming_beacons(serial_ttnc_obj, main_pipe):
 
     while True:
         # Check if pipes have anything
-        if main_pipe.poll(0.2) == True:
+        if main_pipe.poll() == True:
             print("Pipes say something before process leave now")
             main_pipe.recv()
             break
@@ -96,14 +96,19 @@ def main():
                     print(get_help_message())
 
                 if cmd.lower() == 'c':
+
+                    # Stop beacon receiving process
                     conn_main_process.send("stop")
                     process_beacon_collection.join()
-                    time.sleep(3)
+
+                    # Send Telecommand
+                    serial_ttnc.write(b"hello\r\n")
+                    print("Send telecommand to ttnc")
+
                     process_beacon_collection = Process(
                         target=handle_incoming_beacons, args=(serial_ttnc, conn_process_beacon), daemon=True)
                     process_beacon_collection.start()
-                    print("Restart process")
-                    # run_flag = False
+                    print("Restart beacon collection process")
 
                 if cmd.lower() == 'd':
                     pass
