@@ -35,28 +35,38 @@ def handle_contact_mode(serial_ttnc_obj):
 
         ccsds_telecommand = CCSDS_create_HK_telecommand(
             cmd, timestamp_query_start, timestamp_query_end)
-        print(ccsds_telecommand)
-
-        # print(timestamp_query_start, timestamp_query_end)
 
     elif cmd == 11:
         print("---- MISSION COMMAND ----")
         timestamp_start_mission = input("Enter timestamp to start mission: ")
-        num_images = input("Enter number of images to capture: ")
-        interval = input("Enter time interval between captures: ")
 
-        # print(timestamp_start_mission, num_images, interval)
+        num_images = input("Enter number of images to capture: ")
+        num_images = int(num_images)
+
+        interval = input("Enter time interval between captures (ms): ")
+        interval = int(interval)
+
+        ccsds_telecommand = CCSDS_create_mission_telecommand(
+            cmd, timestamp_start_mission, num_images, interval)
 
     elif cmd == 21:
         print("---- DOWNLINK COMMAND ----")
-        timestamp_start_mission = input("Enter timestamp to start mission: ")
+        timestamp_start_downlink = input("Enter timestamp to start mission: ")
+
         timestamp_query_downlink_start = input(
             "Enter start timestamp to query for mission: ")
+
         timestamp_query_downlink_end = input(
             "Enter end timestamp to query for mission: ")
 
-        # print(timestamp_start_mission, timestamp_query_downlink_start,
-        #       timestamp_query_downlink_end)
+        ccsds_telecommand = CCSDS_create_downlink_telecommand(
+            cmd, timestamp_start_downlink, timestamp_query_downlink_start, timestamp_query_downlink_end)
+
+        # KIV: Need to schedule a downlink event -- AP Scheduler
+
+    print("Sending CCSDS telecommand...")
+    serial_ttnc_obj.write(ccsds_telecommand)
+    print("Done...")
 
 
 # Function to call in process to collect beacons from TT&C
