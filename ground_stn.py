@@ -44,7 +44,7 @@ def main():
         msg = msg + "Contact mode: [C] " + "\n"
         msg = msg + "Downlink mode: [D] " + "\n"
         msg = msg + "Terminate Script: [Z] " + "\n"
-        msg = msg + "Command entered: "
+        msg = msg + "Display this help message: [H]" + "\n"
         return msg
 
     # Initialize serial ports for TT&C transceiver
@@ -85,10 +85,15 @@ def main():
             process_beacon_collection.start()
 
             # Wait for trigger to enter other modes
+            print("---- WAITING FOR COMMANDS ----")
+            print(get_help_message())
+
             while run_flag:
-                print("---- WAITING FOR COMMANDS ----")
-                cmd = input(get_help_message())
+                cmd = input()
                 print()
+
+                if cmd.lower() == 'h':
+                    print(get_help_message())
 
                 if cmd.lower() == 'c':
                     conn_main_process.send("stop")
