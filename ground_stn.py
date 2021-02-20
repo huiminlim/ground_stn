@@ -5,6 +5,7 @@ from multiprocessing import Process, Pipe
 
 # Function to call in process to collect beacons from TT&C
 def handle_incoming_beacons(serial_ttnc_obj, main_pipe):
+    print("here in process")
     pass
 
 
@@ -24,8 +25,8 @@ def main():
 
     # Enter Autonomous mode to wait for beacons
     process_beacon_collection = Process(
-        target=handle_incoming_beacons, args=(serial_ttnc, conn_process_beacon, ), daemon=True)
-    # process_beacon_collection.start()
+        target=handle_incoming_beacons, args=(serial_ttnc, conn_process_beacon))
+    process_beacon_collection.daemon = True
 
     run_flag = True
     try:
@@ -36,6 +37,7 @@ def main():
             print("---- GROUND STATION ----")
             init_response = input("To begin, enter [Y]... ")
             if init_response.lower() == 'y':
+                # Carry on running script
                 print()
                 pass
             else:
@@ -43,7 +45,16 @@ def main():
                 print("Exiting script...")
                 break
 
-            # Carry on running script
+            # Begin Autonomous Mode
+            print("Entering Autonomous Mode...")
+            print()
+            process_beacon_collection.start()
+            process_beacon_collection.join()
+
+            # Wait for trigger to enter other modes
+            while run_flag:
+                # print("---- WAITING FOR COMMANDS ----")
+                pass
 
             pass
     except KeyboardInterrupt:
