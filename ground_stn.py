@@ -1,15 +1,18 @@
+from apscheduler.schedulers.background import BackgroundScheduler
 from multiprocessing import Process, Pipe
+from datetime import datetime, timedelta
+from downlink_server import *
 from CCSDS_util import *
 import sys
-import time
 import serial
-
-# Reduce print clutter on terminal
-VERBOSE_MODE = 1
 
 
 # Note: Run this code only on Ubuntu WSL to allow multiprocessing
 # https://icircuit.net/accessing-com-port-from-wsl/2704
+
+
+# def handle_downlink_task():
+#     print("hi")
 
 
 def handle_contact_mode(serial_ttnc_obj):
@@ -24,6 +27,14 @@ def handle_contact_mode(serial_ttnc_obj):
         msg = msg + "Mission Command    -   [11]" + '\n'
         msg = msg + "Downlink Command   -   [21]" + '\n'
         return msg
+
+    def process_timestamp(ts_str):
+        # Process timestamp to datetime object
+        # Format: [DD-MM-YYYY-hh-mm-ss]
+        ls_ts = ts_str.split('-')
+        ls_ts = [int(s) for s in ls_ts]
+
+        return datetime(year=ls_ts[2], month=ls_ts[1], day=ls_ts[0], hour=ls_ts[3], minute=ls_ts[4], second=ls_ts[5])
 
     ccsds_telecommand = bytearray(0)
 
@@ -85,16 +96,23 @@ def handle_contact_mode(serial_ttnc_obj):
     serial_ttnc_obj.write(ccsds_telecommand)
     print("Sending done...")
 
+    timestamp = None
+
     # Await downlink data
     if cmd >= 1 and cmd <= 5:
-        print("TO DO: Await downlink data - KIV")
+        print("TO DO: Await HK data")
 
     if cmd == 21:
-        print("TO DO: Need to schedule task to collect downlink data")
+        timestamp = process_timestamp(timestamp_start_downlink)
+
+    return cmd, timestamp
 
 
 # Function to call in process to collect beacons from TT&C
 def handle_incoming_beacons(serial_ttnc_obj, main_pipe):
+
+    # Reduce print clutter on terminal
+    VERBOSE_MODE = 1
 
     # Pretty print beacon data
     def pretty_print_beacon(decoded_beacon):
@@ -108,9 +126,15 @@ def handle_incoming_beacons(serial_ttnc_obj, main_pipe):
     while True:
         # Check if pipes have anything
         if main_pipe.poll() == True:
-            print("Pipes say something before process leave now")
-            main_pipe.recv()
-            break
+            data = main_pipe.recv()
+            if data == "stop":
+                print("Pipes say stop")
+                # main_pipe.recv()
+                break
+            if data == 'verbose on':
+                VERBOSE_MODE = 1
+            if data == 'verbose off':
+                VERBOSE_MODE = 0
 
         # Wait to receive beacons
         ccsds_beacon_bytes = serial_ttnc_obj.read(CCSDS_BEACON_LEN_BYTES)
@@ -127,10 +151,12 @@ def main():
     def get_help_message():
         msg = ""
         msg = msg + "To transition ground station into these modes, enter commands: " + "\n"
-        msg = msg + "Contact mode: [C] " + "\n"
-        msg = msg + "Downlink mode: [D] " + "\n"
-        msg = msg + "Terminate Script: [Z] " + "\n"
-        msg = msg + "Display this help message: [H]" + "\n"
+        msg = msg + "Contact mode:                      [C] " + "\n"
+        # msg = msg + "Downlink mode: [D] " + "\n"
+        msg = msg + "Keep beacons quiet:                [Q] " + "\n"
+        msg = msg + "Turn on beacons:                   [U] " + "\n"
+        msg = msg + "Terminate Script:                  [Z] " + "\n"
+        msg = msg + "Display this help message:         [H]" + "\n"
         return msg
 
     # Initialize serial ports for TT&C transceiver
@@ -141,8 +167,12 @@ def main():
     conn_process_beacon, conn_main_process = Pipe(duplex=True)
 
     # Initialize serial ports for payload transceiver
-    # payload_port = input("Enter COM port for Payload transceiver: ")
-    # serial_payload = serial.Serial(payload_port, 115200, timeout=None)
+    payload_port = input("Enter COM port for Payload transceiver: ")
+    serial_payload = serial.Serial(payload_port, 115200, timeout=None)
+
+    # Initialize background scheduler for Downlink task
+    scheduler = BackgroundScheduler()
+    scheduler.start()
 
     # Enter Autonomous mode to wait for beacons
     process_beacon_collection = Process(
@@ -175,13 +205,13 @@ def main():
             print(get_help_message())
 
             while run_flag:
-                cmd = input()
+                choice = input()
                 print()
 
-                if cmd.lower() == 'h':
+                if choice.lower() == 'h':
                     print(get_help_message())
 
-                elif cmd.lower() == 'c':
+                elif choice.lower() == 'c':
 
                     # Stop beacon receiving process
                     conn_main_process.send("stop")
@@ -189,7 +219,19 @@ def main():
 
                     # Start contact mode process
                     print("Start Contact mode process")
-                    handle_contact_mode(serial_ttnc)
+                    telecommand_type, ts = handle_contact_mode(serial_ttnc)
+
+                    # Schedule downlink task
+                    if telecommand_type == 21:
+                        print(ts)
+
+                        # Subtract 2 mins from time stamp
+                        ts = ts - timedelta(minutes=2)
+                        print(ts)
+
+                        scheduler.add_job(
+                            handle_downlink_task, next_run_time=ts)
+                        pass
 
                     # Resume beacon collection after contact mode process ends
                     print("Restart beacon collection process")
@@ -198,10 +240,17 @@ def main():
                         target=handle_incoming_beacons, args=(serial_ttnc, conn_process_beacon), daemon=True)
                     process_beacon_collection.start()
 
-                elif cmd.lower() == 'd':
+                elif choice.lower() == 'q':
+                    print("Verbose mode now\n")
+                    conn_main_process.send("verbose on")
                     pass
 
-                elif cmd.lower() == 'z':
+                elif choice.lower() == 'u':
+                    print("Verbose mode off\n")
+                    conn_main_process.send("verbose off")
+                    pass
+
+                elif choice.lower() == 'z':
                     conn_main_process.send("stop")
                     process_beacon_collection.join()
                     run_flag = False

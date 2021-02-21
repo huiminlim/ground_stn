@@ -1,87 +1,70 @@
 import serial
-import time
 import subprocess
 from datetime import datetime
 
 # Docs: https://pyserial.readthedocs.io/en/latest/shortintro.html
 
 
-CHUNK_SIZE = 168
+CHUNK_SIZE = 176
 BATCH_SIZE = 300
 
 TELEMETRY_PACKET_TYPE_DOWNLINK_START = 30
 TELEMETRY_PACKET_TYPE_DOWNLINK_PACKET = 31
 
 TELEMETRY_PACKET_SIZE_DOWNLINK_START = 16  # Bytes
-TELEMETRY_PACKET_SIZE_DOWNLINK_PACKET = 190
+TELEMETRY_PACKET_SIZE_DOWNLINK_PACKET = 198  # Exclude crc
 
 
-def main():
+def handle_downlink_task(ser):
     received_batches = []
 
     total_chunks_expected = 0
     total_bytes_retrieved = 0
 
-    # Set up serial port on Windows 10
-    ser = serial.Serial('COM8')
-    ser.baudrate = 115200
-    ser.timeout = None
+    # Read in a start CCSDS packet
+    ser_bytes = ser.read(TELEMETRY_PACKET_SIZE_DOWNLINK_START)
+    ser.timeout = 5
 
-    image_count = 1
+    total_bytes_retrieved = int.from_bytes(ser_bytes[7:10], 'big')
+    total_chunks_expected = int.from_bytes(ser_bytes[10:13], 'big')
+    total_batch_expected = int.from_bytes(ser_bytes[13:16], 'big')
 
-    while True:
+    transfer_start = datetime.now()
 
-        # Reset timeout
-        ser.timeout = None
+    # Receive batches of chunks
+    batch_counter = 1
+    while batch_counter <= total_batch_expected:
 
-        # Read in a start CCSDS packet
-        ser_bytes = ser.read(TELEMETRY_PACKET_SIZE_DOWNLINK_START)
-        ser.timeout = 5
+        print(f"BATCH READ: Batch {batch_counter} of {total_batch_expected}")
 
-        total_bytes_retrieved = int.from_bytes(ser_bytes[7:10], 'big')
-        total_chunks_expected = int.from_bytes(ser_bytes[10:13], 'big')
-        total_batch_expected = int.from_bytes(ser_bytes[13:16], 'big')
+        # Read in batch
+        packets_in_batch = batch_read(ser, batch_counter, total_batch_expected)
 
-        transfer_start = datetime.now()
+        # received_packets = received_packets + packets_in_batch
+        received_batches.append(packets_in_batch)
 
-        # Receive batches of chunks
-        batch_counter = 1
-        while batch_counter <= total_batch_expected:
+        batch_counter = batch_counter + 1
 
-            print(
-                f"BATCH READ: Batch {batch_counter} of {total_batch_expected}")
+    transfer_end = datetime.now()
+    elapsed_time = transfer_end - transfer_start
+    print(f"Time elapsed: {elapsed_time}")
 
-            # Read in batch
-            packets_in_batch = batch_read(
-                ser, batch_counter, total_batch_expected)
+    # Unravel all batches
+    received_packets = []
+    for batch in received_batches:
+        for packet in batch:
+            received_packets.append(packet)
 
-            # received_packets = received_packets + packets_in_batch
-            received_batches.append(packets_in_batch)
+    # Strip CCSDS headers
+    # Reassemble into compressed file
+    with open("out.gz", "wb") as f:
+        for packet in received_packets:
+            f.write(ccsds_decode_downlink_packets(packet))
+        f.close()
 
-            batch_counter = batch_counter + 1
-
-        transfer_end = datetime.now()
-        elapsed_time = transfer_end - transfer_start
-        print(f"Time elapsed: {elapsed_time}")
-
-        # Unravel all batches
-        received_packets = []
-        for batch in received_batches:
-            for packet in batch:
-                received_packets.append(packet)
-
-        # Strip CCSDS headers
-        # Reassemble into compressed file
-        file_name = 'out' + str(image_count) + '.gz'
-        image_count = image_count + 1
-        with open(file_name, "wb") as f:
-            for packet in received_packets:
-                f.write(ccsds_decode_downlink_packets(packet))
-            f.close()
-
-        # Call this in linux/bash environment only
-        # subprocess.call('./decode.sh out.gz',
-        #                 stdout=subprocess.DEVNULL, shell=True)
+    # Call this in linux/bash environment only
+    # subprocess.call('./decode.sh out.gz',
+    #                 stdout=subprocess.DEVNULL, shell=True)
 
 
 def ccsds_decode_downlink_packets(chunk):
@@ -113,8 +96,3 @@ def batch_read(serial_obj, current_batch, total_batch):
     print()
 
     return chunks_arr
-
-
-if __name__ == "__main__":
-    while True:
-        main()
