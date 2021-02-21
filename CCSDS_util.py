@@ -247,11 +247,19 @@ def CCSDS_create_mission_telecommand(telecommand_type, timestamp_start_mission, 
 
 
 def CCSDS_create_downlink_telecommand(telecommand_type, timestamp_start_downlink, timestamp_start_query, timestamp_end_query):
+    packet_field = bytearray(0)
 
     # Create the other fields in packet first
+    packet_field = packet_field + telecommand_type.to_bytes(1, 'big')
+    packet_field = packet_field + \
+        CCSDS_process_timestamp(timestamp_start_downlink)
+    packet_field = packet_field + \
+        CCSDS_process_timestamp(timestamp_start_query)
+    packet_field = packet_field + \
+        CCSDS_process_timestamp(timestamp_end_query)
 
     # Create header
+    header = CCSDS_create_packet_header(len(packet_field))
 
     # Return appended packet
-
-    pass
+    return header + packet_field

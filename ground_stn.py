@@ -30,6 +30,10 @@ def handle_contact_mode(serial_ttnc_obj):
     print(get_help_message())
     cmd = int(input())
 
+    if cmd > 5 and cmd != 11 and cmd != 21:
+        print("Telecommand type not recognized")
+        return
+
     print("Timestamp format: [DD-MM-YYYY-hh-mm-ss]")
     if cmd >= 1 and cmd <= 5:
         print("---- HK DATA REQUEST ----")
@@ -67,6 +71,17 @@ def handle_contact_mode(serial_ttnc_obj):
             cmd, timestamp_start_downlink, timestamp_query_downlink_start, timestamp_query_downlink_end)
 
     print("Sending CCSDS telecommand...")
+    print(ccsds_telecommand)
+    print(f"length {len(ccsds_telecommand)}")
+
+    while len(ccsds_telecommand) < 28:
+        ccsds_telecommand = ccsds_telecommand + b'B'
+    # Add fake header
+    ccsds_telecommand = b'A' + ccsds_telecommand
+
+    print(ccsds_telecommand)
+    print(f"length {len(ccsds_telecommand)}")
+
     serial_ttnc_obj.write(ccsds_telecommand)
     print("Sending done...")
 
@@ -177,11 +192,11 @@ def main():
                     handle_contact_mode(serial_ttnc)
 
                     # Resume beacon collection after contact mode process ends
+                    print("Restart beacon collection process")
+                    print()
                     process_beacon_collection = Process(
                         target=handle_incoming_beacons, args=(serial_ttnc, conn_process_beacon), daemon=True)
                     process_beacon_collection.start()
-                    print("Restart beacon collection process")
-                    print()
 
                 elif cmd.lower() == 'd':
                     pass
