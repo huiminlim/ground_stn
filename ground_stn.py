@@ -11,10 +11,6 @@ import serial
 # https://icircuit.net/accessing-com-port-from-wsl/2704
 
 
-# def handle_downlink_task():
-#     print("hi")
-
-
 def handle_contact_mode(serial_ttnc_obj):
     def get_help_message():
         msg = "" + '\n'
@@ -36,76 +32,83 @@ def handle_contact_mode(serial_ttnc_obj):
 
         return datetime(year=ls_ts[2], month=ls_ts[1], day=ls_ts[0], hour=ls_ts[3], minute=ls_ts[4], second=ls_ts[5])
 
-    ccsds_telecommand = bytearray(0)
+    try:
+        ccsds_telecommand = bytearray(0)
 
-    print(get_help_message())
-    cmd = int(input())
+        print(get_help_message())
+        cmd = int(input())
 
-    if cmd > 5 and cmd != 11 and cmd != 21:
-        print("Telecommand type not recognized")
-        return
+        if cmd > 5 and cmd != 11 and cmd != 21:
+            print("Telecommand type not recognized")
+            return
 
-    print("Timestamp format: [DD-MM-YYYY-hh-mm-ss]")
-    if cmd >= 1 and cmd <= 5:
-        print("---- HK DATA REQUEST ----")
-        timestamp_query_start = input(
-            "Enter start timestamp to query for data: ")
-        timestamp_query_end = input("Enter end timestamp to query for data: ")
+        print("Timestamp format: [DD-MM-YYYY-hh-mm-ss]")
+        if cmd >= 1 and cmd <= 5:
+            print("---- HK DATA REQUEST ----")
+            timestamp_query_start = input(
+                "Enter start timestamp to query for data: ")
+            timestamp_query_end = input(
+                "Enter end timestamp to query for data: ")
 
-        ccsds_telecommand = CCSDS_create_HK_telecommand(
-            cmd, timestamp_query_start, timestamp_query_end)
+            ccsds_telecommand = CCSDS_create_HK_telecommand(
+                cmd, timestamp_query_start, timestamp_query_end)
 
-    elif cmd == 11:
-        print("---- MISSION COMMAND ----")
-        timestamp_start_mission = input("Enter timestamp to start mission: ")
+        elif cmd == 11:
+            print("---- MISSION COMMAND ----")
+            timestamp_start_mission = input(
+                "Enter timestamp to start mission: ")
 
-        num_images = input("Enter number of images to capture: ")
-        num_images = int(num_images)
+            num_images = input("Enter number of images to capture: ")
+            num_images = int(num_images)
 
-        interval = input("Enter time interval between captures (ms): ")
-        interval = int(interval)
+            interval = input("Enter time interval between captures (ms): ")
+            interval = int(interval)
 
-        ccsds_telecommand = CCSDS_create_mission_telecommand(
-            cmd, timestamp_start_mission, num_images, interval)
+            ccsds_telecommand = CCSDS_create_mission_telecommand(
+                cmd, timestamp_start_mission, num_images, interval)
 
-    elif cmd == 21:
-        print("---- DOWNLINK COMMAND ----")
-        timestamp_start_downlink = input("Enter timestamp to start mission: ")
+        elif cmd == 21:
+            print("---- DOWNLINK COMMAND ----")
+            timestamp_start_downlink = input(
+                "Enter timestamp to start mission: ")
 
-        timestamp_query_downlink_start = input(
-            "Enter start timestamp to query for mission: ")
+            timestamp_query_downlink_start = input(
+                "Enter start timestamp to query for mission: ")
 
-        timestamp_query_downlink_end = input(
-            "Enter end timestamp to query for mission: ")
+            timestamp_query_downlink_end = input(
+                "Enter end timestamp to query for mission: ")
 
-        ccsds_telecommand = CCSDS_create_downlink_telecommand(
-            cmd, timestamp_start_downlink, timestamp_query_downlink_start, timestamp_query_downlink_end)
+            ccsds_telecommand = CCSDS_create_downlink_telecommand(
+                cmd, timestamp_start_downlink, timestamp_query_downlink_start, timestamp_query_downlink_end)
 
-    print("Sending CCSDS telecommand...")
-    print(ccsds_telecommand)
-    print(f"length {len(ccsds_telecommand)}")
+        print("Sending CCSDS telecommand...")
+        print(ccsds_telecommand)
+        print(f"length {len(ccsds_telecommand)}")
 
-    while len(ccsds_telecommand) < 28:
-        ccsds_telecommand = ccsds_telecommand + b'B'
-    # Add fake header
-    ccsds_telecommand = b'A' + ccsds_telecommand
+        while len(ccsds_telecommand) < 28:
+            ccsds_telecommand = ccsds_telecommand + b'B'
+        # Add fake header
+        ccsds_telecommand = b'A' + ccsds_telecommand
 
-    print(ccsds_telecommand)
-    print(f"length {len(ccsds_telecommand)}")
+        print(ccsds_telecommand)
+        print(f"length {len(ccsds_telecommand)}")
 
-    serial_ttnc_obj.write(ccsds_telecommand)
-    print("Sending done...")
+        serial_ttnc_obj.write(ccsds_telecommand)
+        print("Sending done...")
 
-    timestamp = None
+        timestamp = None
 
-    # Await downlink data
-    if cmd >= 1 and cmd <= 5:
-        print("TO DO: Await HK data")
+        # Await downlink data
+        if cmd >= 1 and cmd <= 5:
+            print("TO DO: Await HK data")
 
-    if cmd == 21:
-        timestamp = process_timestamp(timestamp_start_downlink)
+        if cmd == 21:
+            timestamp = process_timestamp(timestamp_start_downlink)
 
-    return cmd, timestamp
+        return cmd, timestamp
+    except Exception as ex:
+        print(ex)
+        pass
 
 
 # Function to call in process to collect beacons from TT&C
@@ -230,7 +233,7 @@ def main():
                         print(ts)
 
                         scheduler.add_job(
-                            handle_downlink_task, next_run_time=ts)
+                            handle_downlink_task, next_run_time=ts, args=[serial_payload])
                         pass
 
                     # Resume beacon collection after contact mode process ends
