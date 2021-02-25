@@ -2,5 +2,5 @@
 
 
 
-gzip -d $1
+gzip -d $1.gz
 base64 -d $2 > $2.jpg

@@ -29,8 +29,8 @@ def handle_downlink_task(ser):
         ser_bytes = ser.read(TELEMETRY_PACKET_SIZE_DOWNLINK_START)
         ser.timeout = 5
 
-        total_images = int.from_bytes(ser_bytes[7], 'big')
-        current_image = int.from_bytes(ser_bytes[8], 'big')
+        total_images = int(ser_bytes[7])
+        current_image = int(ser_bytes[8])
         curr_img_total_bytes_retrieved = int.from_bytes(ser_bytes[9:12], 'big')
         curr_img_total_chunks_expected = int.from_bytes(
             ser_bytes[12:15], 'big')
@@ -74,7 +74,7 @@ def handle_downlink_task(ser):
         # Call this in linux/bash environment only
         # subprocess.call('./decode.sh out.gz',
         #                 stdout=subprocess.DEVNULL, shell=True)
-
+        ser.timeout = 50
     print("Done... Return to main task")
 
 
