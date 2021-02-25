@@ -31,6 +31,9 @@ def handle_downlink_task(ser):
 
         total_images = int(ser_bytes[7])
         current_image = int(ser_bytes[8])
+
+        print(f"Current image: {current_image} of total {total_images}")
+
         curr_img_total_bytes_retrieved = int.from_bytes(ser_bytes[9:12], 'big')
         curr_img_total_chunks_expected = int.from_bytes(
             ser_bytes[12:15], 'big')
