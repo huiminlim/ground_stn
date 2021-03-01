@@ -1,5 +1,3 @@
-import serial
-import subprocess
 from datetime import datetime
 
 # Docs: https://pyserial.readthedocs.io/en/latest/shortintro.html
@@ -11,73 +9,60 @@ BATCH_SIZE = 300
 TELEMETRY_PACKET_TYPE_DOWNLINK_START = 30
 TELEMETRY_PACKET_TYPE_DOWNLINK_PACKET = 31
 
-TELEMETRY_PACKET_SIZE_DOWNLINK_START = 18  # Bytes
-TELEMETRY_PACKET_SIZE_DOWNLINK_PACKET = 198  # Exclude crc
+TELEMETRY_PACKET_SIZE_DOWNLINK_START = 10  # Bytes
+TELEMETRY_PACKET_SIZE_DOWNLINK_PACKET = 192  # Exclude crc
 
 
 def handle_downlink_task(ser):
-    received_batches = []
+    files_buffer = []
 
-    total_chunks_expected = 0
-    total_bytes_retrieved = 0
-    current_image = 0
-    total_images = 1
-
-    while current_image <= total_images:
+    while True:
+        received_batches = []
         # Read in a start CCSDS packet
         print("Waiting for start packet")
         ser_bytes = ser.read(TELEMETRY_PACKET_SIZE_DOWNLINK_START)
+
+        # no more start packets -- timeout
+        if ser_bytes == b'':
+            break
+
         ser.timeout = 5
-
-        total_images = int(ser_bytes[7])
-        current_image = int(ser_bytes[8])
-
-        print(f"Current image: {current_image} of total {total_images}")
-
-        curr_img_total_bytes_retrieved = int.from_bytes(ser_bytes[9:12], 'big')
-        curr_img_total_chunks_expected = int.from_bytes(
-            ser_bytes[12:15], 'big')
         total_batch_expected = int.from_bytes(ser_bytes[15:18], 'big')
 
         transfer_start = datetime.now()
-
         # Receive batches of chunks
         batch_counter = 1
         while batch_counter <= total_batch_expected:
-
             print(
                 f"BATCH READ: Batch {batch_counter} of {total_batch_expected}")
 
             # Read in batch
             packets_in_batch = batch_read(
                 ser, batch_counter, total_batch_expected)
-
-            # received_packets = received_packets + packets_in_batch
             received_batches.append(packets_in_batch)
-
             batch_counter = batch_counter + 1
-
         transfer_end = datetime.now()
         elapsed_time = transfer_end - transfer_start
         print(f"Time elapsed: {elapsed_time}")
 
-        # Unravel all batches
+        # Store list of batches in buffer for processing at end of transfer
+        files_buffer.append(received_batches)
+
+    # Unravel all images received
+    current_image = 1
+    for received_batches in files_buffer:
         received_packets = []
         for batch in received_batches:
             for packet in batch:
                 received_packets.append(packet)
-
         # Strip CCSDS headers
         # Reassemble into compressed file
         with open(f"out_{current_image}.gz", "wb") as f:
             for packet in received_packets:
                 f.write(ccsds_decode_downlink_packets(packet))
             f.close()
+        current_image = current_image + 1
 
-        # Call this in linux/bash environment only
-        # subprocess.call('./decode.sh out.gz',
-        #                 stdout=subprocess.DEVNULL, shell=True)
-        ser.timeout = 50
     print("Done... Return to main task")
 
 
