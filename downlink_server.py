@@ -3,31 +3,33 @@ from datetime import datetime
 # Docs: https://pyserial.readthedocs.io/en/latest/shortintro.html
 
 
-CHUNK_SIZE = 176
-BATCH_SIZE = 300
+CHUNK_SIZE = 179
+BATCH_SIZE = 200
 
 TELEMETRY_PACKET_TYPE_DOWNLINK_START = 30
 TELEMETRY_PACKET_TYPE_DOWNLINK_PACKET = 31
 
-TELEMETRY_PACKET_SIZE_DOWNLINK_START = 10  # Bytes
+TELEMETRY_PACKET_SIZE_DOWNLINK_START = 13  # Bytes
 TELEMETRY_PACKET_SIZE_DOWNLINK_PACKET = 192  # Exclude crc
 
 
 def handle_downlink_task(ser):
     files_buffer = []
 
+    received_batches = []
+
     while True:
-        received_batches = []
         # Read in a start CCSDS packet
         print("Waiting for start packet")
         ser_bytes = ser.read(TELEMETRY_PACKET_SIZE_DOWNLINK_START)
 
-        # no more start packets -- timeout
-        if ser_bytes == b'':
+        if ser_bytes == b"":
             break
 
         ser.timeout = 5
-        total_batch_expected = int.from_bytes(ser_bytes[15:18], 'big')
+        total_batch_expected = int.from_bytes(ser_bytes[10:], 'big')
+
+        print(f"Total batches: {total_batch_expected}")
 
         transfer_start = datetime.now()
         # Receive batches of chunks
@@ -48,6 +50,9 @@ def handle_downlink_task(ser):
         # Store list of batches in buffer for processing at end of transfer
         files_buffer.append(received_batches)
 
+        # Wait for a long time before next start packet comes
+        ser.timeout = 30
+
     # Unravel all images received
     current_image = 1
     for received_batches in files_buffer:
@@ -67,7 +72,7 @@ def handle_downlink_task(ser):
 
 
 def ccsds_decode_downlink_packets(chunk):
-    return chunk[22:]
+    return chunk[13:]
 
 
 def batch_read(serial_obj, current_batch, total_batch):
@@ -76,9 +81,13 @@ def batch_read(serial_obj, current_batch, total_batch):
 
     while True:
         ser_bytes = serial_obj.read(TELEMETRY_PACKET_SIZE_DOWNLINK_PACKET)
+
         chunks_count = chunks_count + 1
         print(f"Chunk {chunks_count} of {BATCH_SIZE} of size {len(ser_bytes)}")
         chunks_arr.append(ser_bytes)
+
+        print(ser_bytes)
+        print()
 
         # Not the final batch and batch read completely
         if chunks_count == BATCH_SIZE and current_batch < total_batch:
