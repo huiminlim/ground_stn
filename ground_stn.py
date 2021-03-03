@@ -3,8 +3,8 @@ from multiprocessing import Process, Pipe
 from datetime import datetime, timedelta
 from downlink_server import *
 from CCSDS_util import *
-import sys
 import serial
+import sys
 
 
 # Note: Run this code only on Ubuntu WSL to allow multiprocessing
@@ -15,13 +15,12 @@ def handle_contact_mode(serial_ttnc_obj):
     def get_help_message():
         msg = "" + '\n'
         msg = msg + "Enter telecommand type - " + '\n'
-        msg = msg + "OBC HK Request     -   [1]" + '\n'
-        msg = msg + "EPS HK Request     -   [2]" + '\n'
-        msg = msg + "ADCS HK Request    -   [3]" + '\n'
-        msg = msg + "TT&C HK Request    -   [4]" + '\n'
-        msg = msg + "Payload HK Request -   [5]" + '\n'
-        msg = msg + "Mission Command    -   [11]" + '\n'
-        msg = msg + "Downlink Command   -   [21]" + '\n'
+        msg = msg + "OBC HK Request                  -   [1]" + '\n'
+        msg = msg + "EPS HK Request                  -   [2]" + '\n'
+        msg = msg + "ADCS HK Request                 -   [3]" + '\n'
+        msg = msg + "TT&C HK Request                 -   [4]" + '\n'
+        msg = msg + "Payload HK Request              -   [5]" + '\n'
+        msg = msg + "Mission + Downlink Command      -   [11]" + '\n'
         return msg
 
     def process_timestamp(ts_str):
@@ -54,7 +53,7 @@ def handle_contact_mode(serial_ttnc_obj):
                 cmd, timestamp_query_start, timestamp_query_end)
 
         elif cmd == 11:
-            print("---- MISSION COMMAND ----")
+            print("---- MISSION + DOWNLINK COMMAND ----")
             timestamp_start_mission = input(
                 "Enter timestamp to start mission: ")
 
@@ -64,11 +63,6 @@ def handle_contact_mode(serial_ttnc_obj):
             interval = input("Enter time interval between captures (ms): ")
             interval = int(interval)
 
-            ccsds_telecommand = CCSDS_create_mission_telecommand(
-                cmd, timestamp_start_mission, num_images, interval)
-
-        elif cmd == 21:
-            print("---- DOWNLINK COMMAND ----")
             timestamp_start_downlink = input(
                 "Enter timestamp to start mission: ")
 
@@ -78,15 +72,17 @@ def handle_contact_mode(serial_ttnc_obj):
             timestamp_query_downlink_end = input(
                 "Enter end timestamp to query for mission: ")
 
-            ccsds_telecommand = CCSDS_create_downlink_telecommand(
-                cmd, timestamp_start_downlink, timestamp_query_downlink_start, timestamp_query_downlink_end)
+            ccsds_telecommand = CCSDS_create_mission_downlink_telecommand(
+                cmd, timestamp_start_mission, num_images, interval, timestamp_start_downlink, timestamp_query_downlink_start, timestamp_query_downlink_end)
 
         print("Sending CCSDS telecommand...")
-        print(ccsds_telecommand)
-        print(f"length {len(ccsds_telecommand)}")
+        # print(ccsds_telecommand)
+        # print(f"length {len(ccsds_telecommand)}")
 
-        while len(ccsds_telecommand) < 28:
+        TELECOMMAND_PACKET_LEN_BYTES = 38
+        while len(ccsds_telecommand) < TELECOMMAND_PACKET_LEN_BYTES:
             ccsds_telecommand = ccsds_telecommand + b'B'
+
         # Add fake header
         ccsds_telecommand = b'A' + ccsds_telecommand
 
@@ -102,10 +98,11 @@ def handle_contact_mode(serial_ttnc_obj):
         if cmd >= 1 and cmd <= 5:
             print("TO DO: Await HK data")
 
-        if cmd == 21:
+        if cmd == 11:
             timestamp = process_timestamp(timestamp_start_downlink)
 
         return cmd, timestamp
+
     except Exception as ex:
         print(ex)
         pass
@@ -265,7 +262,7 @@ def main():
     except KeyboardInterrupt:
         run_flag = False
 
-    # serial_payload.close()
+    serial_payload.close()
     serial_ttnc.close()
 
     conn_main_process.close()
