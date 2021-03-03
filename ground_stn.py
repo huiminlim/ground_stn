@@ -64,22 +64,22 @@ def handle_contact_mode(serial_ttnc_obj):
             interval = int(interval)
 
             timestamp_start_downlink = input(
-                "Enter timestamp to start mission: ")
+                "Enter timestamp to start downlink: ")
 
-            timestamp_query_downlink_start = input(
-                "Enter start timestamp to query for mission: ")
+            # timestamp_query_downlink_start = input(
+            #     "Enter start timestamp to query for mission: ")
 
-            timestamp_query_downlink_end = input(
-                "Enter end timestamp to query for mission: ")
+            # timestamp_query_downlink_end = input(
+            #     "Enter end timestamp to query for mission: ")
 
             ccsds_telecommand = CCSDS_create_mission_downlink_telecommand(
-                cmd, timestamp_start_mission, num_images, interval, timestamp_start_downlink, timestamp_query_downlink_start, timestamp_query_downlink_end)
+                cmd, timestamp_start_mission, num_images, interval, timestamp_start_downlink)
 
         print("Sending CCSDS telecommand...")
         # print(ccsds_telecommand)
         # print(f"length {len(ccsds_telecommand)}")
 
-        TELECOMMAND_PACKET_LEN_BYTES = 38
+        TELECOMMAND_PACKET_LEN_BYTES = 24
         while len(ccsds_telecommand) < TELECOMMAND_PACKET_LEN_BYTES:
             ccsds_telecommand = ccsds_telecommand + b'B'
 

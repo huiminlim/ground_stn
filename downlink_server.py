@@ -86,8 +86,8 @@ def batch_read(serial_obj, current_batch, total_batch):
         print(f"Chunk {chunks_count} of {BATCH_SIZE} of size {len(ser_bytes)}")
         chunks_arr.append(ser_bytes)
 
-        print(ser_bytes)
-        print()
+        # print(ser_bytes)
+        # print()
 
         # Not the final batch and batch read completely
         if chunks_count == BATCH_SIZE and current_batch < total_batch:
