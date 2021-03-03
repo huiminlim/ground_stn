@@ -37,7 +37,7 @@ def handle_contact_mode(serial_ttnc_obj):
         print(get_help_message())
         cmd = int(input())
 
-        if cmd > 5 and cmd != 11 and cmd != 21:
+        if cmd > 5 and cmd != TELECOMMAND_TYPE_MISSION_DOWNLINK:
             print("Telecommand type not recognized")
             return
 
@@ -52,7 +52,7 @@ def handle_contact_mode(serial_ttnc_obj):
             ccsds_telecommand = CCSDS_create_HK_telecommand(
                 cmd, timestamp_query_start, timestamp_query_end)
 
-        elif cmd == 11:
+        elif cmd == TELECOMMAND_TYPE_MISSION_DOWNLINK:
             print("---- MISSION + DOWNLINK COMMAND ----")
             timestamp_start_mission = input(
                 "Enter timestamp to start mission: ")
@@ -98,7 +98,7 @@ def handle_contact_mode(serial_ttnc_obj):
         if cmd >= 1 and cmd <= 5:
             print("TO DO: Await HK data")
 
-        if cmd == 11:
+        if cmd == TELECOMMAND_TYPE_MISSION_DOWNLINK:
             timestamp = process_timestamp(timestamp_start_downlink)
 
         return cmd, timestamp
@@ -222,15 +222,16 @@ def main():
                     telecommand_type, ts = handle_contact_mode(serial_ttnc)
 
                     # Schedule downlink task
-                    if telecommand_type == 21:
-                        print(ts)
-
+                    if telecommand_type == TELECOMMAND_TYPE_MISSION_DOWNLINK:
                         # Subtract 2 mins from time stamp
                         ts = ts - timedelta(minutes=2)
-                        print(ts)
 
                         scheduler.add_job(
                             handle_downlink_task, next_run_time=ts, args=[serial_payload])
+
+                        print("Scheduled downlink job")
+                        print()
+
                         pass
 
                     # Resume beacon collection after contact mode process ends
